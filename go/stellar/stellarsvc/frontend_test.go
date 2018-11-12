@@ -1396,6 +1396,32 @@ func TestBuildPaymentLocal(t *testing.T) {
 		Message:       fmt.Sprintf("Because it's %v's first transaction, you must send at least 1 XLM.", tcs[1].Fu.Username),
 	}})
 
+	// The user's available to send rounds to $6.05 but is greater than 6.05.
+	// Avoid the situation where you type $6.05 and it responds "your ATS is $6.05" (CORE-9338)
+	bres, err = tcs[0].Srv.BuildPaymentLocal(context.Background(), stellar1.BuildPaymentLocalArg{
+		From:     senderAccountID,
+		To:       tcs[1].Fu.Username,
+		Amount:   "6.05",
+		Currency: &usd,
+	})
+	require.NoError(t, err)
+	t.Logf(spew.Sdump(bres))
+	require.Equal(t, false, bres.ReadyToSend)
+	require.Equal(t, "", bres.ToErrMsg)
+	require.Equal(t, "Your available to send is *$X USD*.", bres.AmountErrMsg)
+	require.Equal(t, "", bres.SecretNoteErrMsg)
+	require.Equal(t, "", bres.PublicMemoErrMsg)
+	require.Equal(t, "$9.55 USD", bres.WorthDescription)
+	require.Equal(t, worthInfo, bres.WorthInfo)
+	require.True(t, bres.SendingIntentionXLM)
+	require.Equal(t, "30 XLM", bres.DisplayAmountXLM)
+	require.Equal(t, "$9.55 USD", bres.DisplayAmountFiat)
+	requireBannerSet(t, bres.DeepCopy().Banners, []stellar1.SendBannerLocal{{
+		HideOnConfirm: true,
+		Level:         "info",
+		Message:       fmt.Sprintf("Because it's %v's first transaction, you must send at least 1 XLM.", tcs[1].Fu.Username),
+	}})
+
 	bres, err = tcs[0].Srv.BuildPaymentLocal(context.Background(), stellar1.BuildPaymentLocalArg{
 		From:          senderAccountID,
 		To:            recipientAccountID.String(),
